@@ -43,6 +43,7 @@ enum ZIMAGE_FORMAT
 	ZIMAGE_XZ,	 /**< xz compressed zimage payload */
 	ZIMAGE_LZMA, /**< lzma compressed zimage payload */
 	ZIMAGE_LZ4,	 /**< lz4 compressed zimage payload */
+	ZIMAGE_ZSTD, /**< zstd compressed zimage payload */
 };
 
 struct zimage_header
@@ -58,6 +59,7 @@ static const uint8_t magic_lzo[] = {0x89, 0x4c, 0x5a, 0x4f, 0x00, 0x0d, 0x0a, 0x
 static const uint8_t magic_xz[] = {0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00};
 static const uint8_t magic_lzma[] = {0x5d, 0x00, 0x00};
 static const uint8_t magic_lz4[] = {0x02, 0x21, 0x4c, 0x18};
+static const uint8_t magic_zstd[] = {0xFD, 0x2F, 0xB5, 0x28};
 
 int main(int argc, char *argv[])
 {
@@ -68,8 +70,6 @@ int main(int argc, char *argv[])
 	}
 
 	char *path = argv[1];
-
-	fprintf(stderr, "file %s\n", path);
 
 	int fd = -1;
 	size_t size = 0;
@@ -167,6 +167,12 @@ int main(int argc, char *argv[])
 		payload = payload_match;
 		format = ZIMAGE_LZ4;
 	}
+	payload_match = memmem(header, payload_max_size, magic_zstd, sizeof(magic_zstd));
+	if (payload_match != NULL && payload_match < payload) // Only pick better magic if it's located before other magic found
+	{
+		payload = payload_match;
+		format = ZIMAGE_ZSTD;
+	}
 
 	if (format == ZIMAGE_UNKNOWN)
 	{
@@ -178,11 +184,6 @@ int main(int argc, char *argv[])
 	payload_size = payload_end - payload_offset;
 	// fprintf(stderr, "Found payload at offset %zu with format %u with size %zu\n", payload_offset, format, payload_size);
 
-	// TODO: Write to tmp folder
-	// 5981342
-	// 5981722 5988766
-	// dd if=zImage--5.10-r0-imx6ul-20221028174456.bin of=test.lzop skip=7482 count=5981284 bs=1
-	// (cat test.lzop|lzop -d|strings|grep 'Linux version \d') 2> /dev/null
 	char *decompression_command;
 	switch (format)
 	{
@@ -193,22 +194,27 @@ int main(int argc, char *argv[])
 	}
 	case ZIMAGE_GZIP:
 	{
-		fprintf(stderr, "zimage: unsupported format: %s\n", "gzip");
+		decompression_command = "gzip -d";
 		exit(255);
 	}
 	case ZIMAGE_LZ4:
 	{
-		fprintf(stderr, "zimage: unsupported format: %s\n", "lz4");
+		decompression_command = "lz4 -d";
 		exit(255);
 	}
 	case ZIMAGE_LZMA:
 	{
-		fprintf(stderr, "zimage: unsupported format: %s\n", "lz4");
+		decompression_command = "lzma -d";
 		exit(255);
 	}
 	case ZIMAGE_XZ:
 	{
-		fprintf(stderr, "zimage: unsupported format: %s\n", "lz4");
+		decompression_command = "xz -d";
+		exit(255);
+	}
+	case ZIMAGE_ZSTD:
+	{
+		decompression_command = "zstd -d";
 		exit(255);
 	}
 	default:
@@ -216,26 +222,23 @@ int main(int argc, char *argv[])
 		exit(255);
 	}
 
+	// Open decompression command and write payload to stdin
 	f = popen(decompression_command, "w");
+	if (f == NULL)
+	{
+		fprintf(stderr, "failed to start decompression command: %s\n", decompression_command);
+		exit(255);
+	}
 	int d = fileno(f);
-
-	// https://stackoverflow.com/questions/6171552/popen-simultaneous-read-and-write
 	int write_size = payload_size;
 	ssize_t res;
 	while (write_size > 0)
 	{
-		res = write(d, payload, MIN(write_size, 1024));
+		res = write(d, payload, MIN(write_size, 4096));
 		write_size -= res;
 		payload += res;
-		// fprintf(stderr, "write: %zd - %d\n", res, write_size);
 	}
-
-	// open binary lzop -d - | strings | grep Linux
-	// https://github.com/connectedcars/firmware_ccupd/blob/af7ef67ed090a47ab1c6572b99e656f23f8225ad/test/cmd-handler.c
-	// http://www.microhowto.info/howto/capture_the_output_of_a_child_process_in_c.html
-	// https://man7.org/linux/man-pages/man3/popen.3.html
-	// https://stackoverflow.com/questions/1735781/non-blocking-pipe-using-popen
-
 	close(fd);
-	// TODO: Free mmap
+
+	munmap(zimage_data_map, size);
 }
