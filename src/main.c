@@ -32,6 +32,9 @@
 #error "Unknown byte order"
 #endif
 
+#define MIN(a, b) (((a) < (b)) ? (a) : (b))
+#define MAX(a, b) (((a) > (b)) ? (a) : (b))
+
 enum ZIMAGE_FORMAT
 {
 	ZIMAGE_UNKNOWN,
@@ -115,7 +118,9 @@ int main(void)
 	header_offset = ((uint8_t *)header - zimage_data_map);
 	payload_end = LE32_TO_CPU(header->end);
 	payload_max_size = payload_end - header_offset;
-	payload = (uint8_t *)payload_end; // Set payload to end of payload
+	payload = (uint8_t *)header + payload_end; // Set payload to end of payload
+
+	// https://github.com/connectedcars/firmware_ccupd/blob/2740c3ab3ddd149fa839843dfecbeb818bec4f8b/src/method/zimage.c#L115
 
 	fprintf(stderr, "Found zimage header offset %zu\n", header_offset);
 
@@ -163,65 +168,65 @@ int main(void)
 
 	payload_offset = ((uint8_t *)payload - zimage_data_map);
 	payload_size = payload_end - payload_offset;
-	fprintf(stderr, "Found payload at offset %zu with format %u with size %u\n", payload_offset, format, payload_size);
+	fprintf(stderr, "Found payload at offset %zu with format %u with size %zu\n", payload_offset, format, payload_size);
 
 	// TODO: Write to tmp folder
 	// 5981342
 	// 5981722 5988766
 	// dd if=zImage--5.10-r0-imx6ul-20221028174456.bin of=test.lzop skip=7482 count=5981284 bs=1
 	// (cat test.lzop|lzop -d|strings|grep 'Linux version \d') 2> /dev/null
+	char *decompression_command;
 	switch (format)
 	{
 	case ZIMAGE_LZO:
-		f = popen("echo hello world", "r");
-		int d = fileno(f);
-		fcntl(d, F_SETFL, O_NONBLOCK);
-		// https://stackoverflow.com/questions/6171552/popen-simultaneous-read-and-write
-		while (1)
-		{
-			ssize_t r = read(d, buf, sizeof(buf));
-			fprintf(stderr, "r %zd\n", r);
-
-			if (r == -1 && errno == EAGAIN)
-			{
-				// No data yet
-				fprintf(stderr, "No data yet\n");
-			}
-			else if (r > 0)
-			{
-				// received data else pipe closed
-				fprintf(stderr, "data: %s\n", buf);
-				break;
-			}
-			else
-			{
-				fprintf(stderr, "other\n");
-			}
-			sleep(1);
-		}
-
-		// open binary lzop -d - | strings | grep Linux
-		// https://github.com/connectedcars/firmware_ccupd/blob/af7ef67ed090a47ab1c6572b99e656f23f8225ad/test/cmd-handler.c
-		// http://www.microhowto.info/howto/capture_the_output_of_a_child_process_in_c.html
-		// https://man7.org/linux/man-pages/man3/popen.3.html
-		// https://stackoverflow.com/questions/1735781/non-blocking-pipe-using-popen
+	{
+		decompression_command = "lzop -d";
 		break;
+	}
 	case ZIMAGE_GZIP:
+	{
 		fprintf(stderr, "zimage: unsupported format: %s\n", "gzip");
 		exit(255);
+	}
 	case ZIMAGE_LZ4:
+	{
 		fprintf(stderr, "zimage: unsupported format: %s\n", "lz4");
 		exit(255);
+	}
 	case ZIMAGE_LZMA:
+	{
 		fprintf(stderr, "zimage: unsupported format: %s\n", "lz4");
 		exit(255);
+	}
 	case ZIMAGE_XZ:
+	{
 		fprintf(stderr, "zimage: unsupported format: %s\n", "lz4");
 		exit(255);
+	}
 	default:
 		fprintf(stderr, "zimage: unknown format\n");
 		exit(255);
 	}
+
+	f = popen(decompression_command, "w");
+	int d = fileno(f);
+
+	// https://stackoverflow.com/questions/6171552/popen-simultaneous-read-and-write
+	int write_size = payload_size;
+	ssize_t res;
+	while (write_size > 0)
+	{
+		res = write(d, payload, MIN(write_size, 1024));
+		write_size -= res;
+		payload += res;
+		// fprintf(stderr, "write: %zd - %d\n", res, write_size);
+	}
+
+	// open binary lzop -d - | strings | grep Linux
+	// https://github.com/connectedcars/firmware_ccupd/blob/af7ef67ed090a47ab1c6572b99e656f23f8225ad/test/cmd-handler.c
+	// http://www.microhowto.info/howto/capture_the_output_of_a_child_process_in_c.html
+	// https://man7.org/linux/man-pages/man3/popen.3.html
+	// https://stackoverflow.com/questions/1735781/non-blocking-pipe-using-popen
 
 	close(fd);
 	// TODO: Free mmap
