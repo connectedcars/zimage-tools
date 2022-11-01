@@ -15,3 +15,6 @@ zimage-extract: src/zimage-extract.c
 
 clean veryclean:
 	$(RM) zimage-extract
+
+install:
+	cp zimage-extract /usr/local/bin
