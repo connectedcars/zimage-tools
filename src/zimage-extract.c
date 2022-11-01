@@ -59,9 +59,17 @@ static const uint8_t magic_xz[] = {0xfd, 0x37, 0x7a, 0x58, 0x5a, 0x00};
 static const uint8_t magic_lzma[] = {0x5d, 0x00, 0x00};
 static const uint8_t magic_lz4[] = {0x02, 0x21, 0x4c, 0x18};
 
-int main(void)
+int main(int argc, char *argv[])
 {
-	char *path = "zImage--5.10-r0-imx6ul-20221028174456.bin";
+	if (argc != 2)
+	{
+		fprintf(stderr, "zimage-extract zImage\n");
+		exit(1);
+	}
+
+	char *path = argv[1];
+
+	fprintf(stderr, "file %s\n", path);
 
 	int fd = -1;
 	size_t size = 0;
@@ -122,7 +130,7 @@ int main(void)
 
 	// https://github.com/connectedcars/firmware_ccupd/blob/2740c3ab3ddd149fa839843dfecbeb818bec4f8b/src/method/zimage.c#L115
 
-	fprintf(stderr, "Found zimage header offset %zu\n", header_offset);
+	// fprintf(stderr, "Found zimage header offset %zu\n", header_offset);
 
 	payload_match = memmem(header, payload_max_size, magic_gzip, sizeof(magic_gzip));
 	if (payload_match != NULL)
@@ -168,7 +176,7 @@ int main(void)
 
 	payload_offset = ((uint8_t *)payload - zimage_data_map);
 	payload_size = payload_end - payload_offset;
-	fprintf(stderr, "Found payload at offset %zu with format %u with size %zu\n", payload_offset, format, payload_size);
+	// fprintf(stderr, "Found payload at offset %zu with format %u with size %zu\n", payload_offset, format, payload_size);
 
 	// TODO: Write to tmp folder
 	// 5981342
@@ -230,5 +238,4 @@ int main(void)
 
 	close(fd);
 	// TODO: Free mmap
-	fprintf(stderr, "Stuff done\n");
 }

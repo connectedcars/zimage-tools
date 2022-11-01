@@ -8,10 +8,10 @@ RM      = rm -f
 # brew build: https://github.com/jd-boyd/python-lzo/issues/23
 default: all
 
-all: main
+all: zimage-extract
 
-main: src/main.c
-	$(CC) $(CFLAGS) src/main.c -o main
+zimage-extract: src/zimage-extract.c
+	$(CC) $(CFLAGS) src/zimage-extract.c -o zimage-extract
 
 clean veryclean:
-	$(RM) main
+	$(RM) zimage-extract
