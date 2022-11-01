@@ -1,5 +1,10 @@
-# zimage-version
-Tool to dump version info from a Linux zImage file
+# zimage tools
+
+Tools to work with Linux zImage file
+
+* zimage-extract: Extract kernel image from zImage
+* zimage-buildsha: Print build sha from zImage
+* zimage-version: Print version information from zImage
 
 ## VSCode
 
@@ -22,8 +27,8 @@ launch.json:
             "name": "(lldb) Launch",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceFolder}/main",
-            "args": [],
+            "program": "${workspaceFolder}/zimage-extract",
+            "args": ["zImage--5.10-r0-imx6ul-20221028174456.bin"],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
             "environment": [],
