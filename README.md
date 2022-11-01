@@ -10,7 +10,7 @@ Tools to work with Linux zImage file
 
 settings.json:
 
-``` JSON
+``` json5
 {
     "editor.formatOnSave": true,
     "editor.formatOnType": true
@@ -19,7 +19,7 @@ settings.json:
 
 launch.json:
 
-``` JSON
+``` json5
 {
     "version": "0.2.0",
     "configurations": [
@@ -42,7 +42,7 @@ launch.json:
 
 tasks.json:
 
-```` JSON
+``` json5
 {
     "version": "2.0.0",
     "tasks": [
@@ -61,7 +61,7 @@ tasks.json:
 
 c_cpp_properties.json:
 
-``` JSON
+``` json5
 {
     "configurations": [
         {
