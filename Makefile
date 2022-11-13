@@ -23,3 +23,5 @@ clean veryclean:
 
 install:
 	cp zimage-extract /usr/local/bin
+	cp zimage-buildsha.sh /usr/local/bin
+	cp zimage-version.sh /usr/local/bin
