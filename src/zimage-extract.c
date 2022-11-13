@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
@@ -11,7 +13,6 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <util.h>
 
 // https://gist.github.com/atr000/249599
 #define bswap_16(value) \
